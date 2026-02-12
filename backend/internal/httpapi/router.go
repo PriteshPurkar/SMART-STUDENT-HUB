@@ -11,6 +11,12 @@ import (
 
 // NewRouter wires all public API routes under /api/v1.
 func NewRouter(cfg *config.Config) (http.Handler, error) {
+	// Initialize services
+	services, err := InitServices(cfg)
+	if err != nil {
+		return nil, err
+	}
+
 	r := chi.NewRouter()
 
 	r.Get("/healthz", func(w http.ResponseWriter, r *http.Request) {
@@ -20,20 +26,20 @@ func NewRouter(cfg *config.Config) (http.Handler, error) {
 
 	// Auth endpoints
 	r.Route("/auth", func(r chi.Router) {
-		registerAuthRoutes(r, cfg)
+		registerAuthRoutes(r, cfg, services)
 	})
 
 	// Student endpoints
 	r.Group(func(r chi.Router) {
 		r.Use(middleware.JWTAuth(cfg.JWTSecret))
 		r.Route("/student", func(r chi.Router) {
-			registerStudentRoutes(r)
+			registerStudentRoutes(r, services)
 		})
 		r.Route("/sessions", func(r chi.Router) {
-			registerSessionRoutes(r)
+			registerSessionRoutes(r, services)
 		})
 		r.Route("/exams", func(r chi.Router) {
-			registerExamRoutes(r)
+			registerExamRoutes(r, services)
 		})
 	})
 
@@ -42,7 +48,7 @@ func NewRouter(cfg *config.Config) (http.Handler, error) {
 		r.Use(middleware.JWTAuth(cfg.JWTSecret))
 		r.Use(middleware.RequireAdminOrInstructor())
 		r.Route("/admin", func(r chi.Router) {
-			registerAdminRoutes(r)
+			registerAdminRoutes(r, services)
 		})
 	})
 

@@ -4,77 +4,84 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
-	"time"
 
 	"github.com/go-chi/chi/v5"
-
-	"github.com/example/scalable-learning-platform/backend/internal/models"
 )
 
-func registerSessionRoutes(r chi.Router) {
-	r.Get("/", handleListSessions)
-	r.Get("/{id}", handleGetSession)
-	r.Get("/{id}/status", handleGetSessionStatus)
-	r.Get("/{id}/materials", handleGetSessionMaterials)
+func registerSessionRoutes(r chi.Router, services *Services) {
+	r.Get("/", handleListSessions(services))
+	r.Get("/{id}", handleGetSession(services))
+	r.Get("/{id}/status", handleGetSessionStatus(services))
+	r.Get("/{id}/materials", handleGetSessionMaterials(services))
 }
 
-func handleListSessions(w http.ResponseWriter, r *http.Request) {
-	now := time.Now()
-	sessions := []models.Session{
-		{
-			ID:          1,
-			Title:       "Live Exam Prep",
-			Description: "Final preparation for exams",
-			StartTime:   now.Add(30 * time.Minute),
-			EndTime:     now.Add(90 * time.Minute),
-			Status:      models.SessionScheduled,
-			VideoURL:    "https://video.example.com/session/1",
-		},
+func handleListSessions(services *Services) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		sessions, err := services.Sessions.GetAllSessions()
+		if err != nil {
+			http.Error(w, "failed to fetch sessions", http.StatusInternalServerError)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		if sessions == nil {
+			sessions = []interface{}{}
+		}
+		_ = json.NewEncoder(w).Encode(sessions)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(sessions)
 }
 
-func handleGetSession(w http.ResponseWriter, r *http.Request) {
-	idStr := chi.URLParam(r, "id")
-	id, _ := strconv.ParseInt(idStr, 10, 64)
-	now := time.Now()
-	s := models.Session{
-		ID:          id,
-		Title:       "Live Exam Prep",
-		Description: "Details for session",
-		StartTime:   now.Add(30 * time.Minute),
-		EndTime:     now.Add(90 * time.Minute),
-		Status:      models.SessionScheduled,
-		VideoURL:    "https://video.example.com/session/1",
+func handleGetSession(services *Services) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "id")
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid session id", http.StatusBadRequest)
+			return
+		}
+
+		session, err := services.Sessions.GetSessionByID(id)
+		if err != nil {
+			http.Error(w, "session not found", http.StatusNotFound)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(session)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(s)
 }
 
-func handleGetSessionStatus(w http.ResponseWriter, r *http.Request) {
-	status := struct {
-		Status models.SessionStatus `json:"status"`
-	}{
-		Status: models.SessionScheduled,
+func handleGetSessionStatus(services *Services) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		idStr := chi.URLParam(r, "id")
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid session id", http.StatusBadRequest)
+			return
+		}
+
+		session, err := services.Sessions.GetSessionByID(id)
+		if err != nil {
+			http.Error(w, "session not found", http.StatusNotFound)
+			return
+		}
+
+		status := struct {
+			Status interface{} `json:"status"`
+		}{
+			Status: session.Status,
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(status)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(status)
 }
 
-func handleGetSessionMaterials(w http.ResponseWriter, r *http.Request) {
-	materials := []models.StudyMaterial{
-		{
-			ID:        1,
-			Title:     "Exam Syllabus",
-			Type:      models.MaterialPDF,
-			S3Key:     "materials/exam-syllabus.pdf",
-			URL:       "https://cdn.example.com/materials/exam-syllabus.pdf",
-			UploadedBy: 100,
-			CreatedAt: time.Now(),
-		},
+func handleGetSessionMaterials(services *Services) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// TODO: Implement material service to fetch materials by session ID
+		materials := []interface{}{}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(materials)
 	}
-	w.Header().Set("Content-Type", "application/json")
-	_ = json.NewEncoder(w).Encode(materials)
 }
 

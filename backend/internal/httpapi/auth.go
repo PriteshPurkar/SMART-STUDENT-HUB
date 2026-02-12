@@ -9,43 +9,46 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/example/scalable-learning-platform/backend/internal/config"
+	"github.com/example/scalable-learning-platform/backend/internal/middleware"
 	"github.com/example/scalable-learning-platform/backend/internal/models"
 )
 
-type authService interface {
-	RegisterStudent(name, email, password string) (*models.User, error)
-	Login(email, password string) (*models.User, error)
-	GetUserByID(id int64) (*models.User, error)
-}
-
-// In this scaffold we use an in-memory auth service implementation.
-var defaultAuthService authService = newInMemoryAuthService()
-
-func registerAuthRoutes(r chi.Router, cfg *config.Config) {
-	r.Post("/register", handleRegister)
-	r.Post("/login", handleLogin(cfg))
-	r.Get("/me", handleMe)
+func registerAuthRoutes(r chi.Router, cfg *config.Config, services *Services) {
+	r.Post("/register", handleRegister(services))
+	r.Post("/login", handleLogin(cfg, services))
+	r.Get("/me", handleMe(services))
 }
 
 type registerRequest struct {
 	Name     string `json:"name"`
 	Email    string `json:"email"`
 	Password string `json:"password"`
+	Role     string `json:"role,omitempty"`
 }
 
-func handleRegister(w http.ResponseWriter, r *http.Request) {
-	var req registerRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		http.Error(w, "invalid payload", http.StatusBadRequest)
-		return
+func handleRegister(services *Services) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var req registerRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "invalid payload", http.StatusBadRequest)
+			return
+		}
+
+		role := models.RoleStudent
+		if req.Role != "" && req.Role == "INSTRUCTOR" {
+			role = models.RoleInstructor
+		}
+
+		user, err := services.Users.CreateUser(req.Name, req.Email, req.Password, role)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusCreated)
+		_ = json.NewEncoder(w).Encode(user)
 	}
-	user, err := defaultAuthService.RegisterStudent(req.Name, req.Email, req.Password)
-	if err != nil {
-		http.Error(w, err.Error(), http.StatusBadRequest)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(user)
 }
 
 type loginRequest struct {
@@ -58,15 +61,21 @@ type loginResponse struct {
 	User  *models.User `json:"user"`
 }
 
-func handleLogin(cfg *config.Config) http.HandlerFunc {
+func handleLogin(cfg *config.Config, services *Services) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		var req loginRequest
 		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 			http.Error(w, "invalid payload", http.StatusBadRequest)
 			return
 		}
-		user, err := defaultAuthService.Login(req.Email, req.Password)
+
+		user, err := services.Users.GetUserByEmail(req.Email)
 		if err != nil {
+			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+			return
+		}
+
+		if !services.Users.VerifyPassword(user.Password, req.Password) {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
@@ -83,17 +92,36 @@ func handleLogin(cfg *config.Config) http.HandlerFunc {
 			return
 		}
 
+		// Don't return password in response
+		user.Password = ""
+
 		resp := loginResponse{
 			Token: signed,
 			User:  user,
 		}
+		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}
 }
 
-func handleMe(w http.ResponseWriter, r *http.Request) {
-	// For simplicity in this scaffold, we just return 501 if not wired with middleware.
-	w.WriteHeader(http.StatusNotImplemented)
-	_, _ = w.Write([]byte(`{"message":"not implemented in scaffold"}`))
+func handleMe(services *Services) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		user := middleware.CurrentUser(r)
+		if user == nil {
+			http.Error(w, "unauthorized", http.StatusUnauthorized)
+			return
+		}
+
+		dbUser, err := services.Users.GetUserByID(user.UserID)
+		if err != nil {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+
+		dbUser.Password = ""
+
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(dbUser)
+	}
 }
 

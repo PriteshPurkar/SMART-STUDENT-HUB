@@ -44,9 +44,22 @@ func main() {
 	}
 
 	log.Printf("API listening on :%s", cfg.Port)
+	log.Printf("Environment: %s", cfg.Environment)
+	log.Printf("Database: %s", maskDatabaseURL(cfg.DatabaseURL))
+
 	if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 		log.Printf("server error: %v", err)
 		os.Exit(1)
 	}
+}
+
+// maskDatabaseURL masks sensitive information in database URL for logging
+func maskDatabaseURL(url string) string {
+	if len(url) == 0 {
+		return "(not configured)"
+	}
+	// Just show that it's configured without showing credentials
+	return "postgres://***:***@***:***/**?"
+}
 }
 
