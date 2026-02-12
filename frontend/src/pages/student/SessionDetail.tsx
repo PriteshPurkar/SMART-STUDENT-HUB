@@ -1,9 +1,11 @@
+import { useEffect } from "react";
 import { useParams } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchSession, fetchSessionMaterials } from "../../services/api";
 
 function SessionDetail() {
   const { id } = useParams<{ id: string }>();
+  const queryClient = useQueryClient();
 
   const { data: session } = useQuery({
     queryKey: ["session", id],
@@ -15,6 +17,14 @@ function SessionDetail() {
     queryFn: () => fetchSessionMaterials(id || ""),
     enabled: !!id
   });
+
+  useEffect(() => {
+    if (!id) return;
+    const handle = setInterval(() => {
+      queryClient.invalidateQueries({ queryKey: ["session", id] });
+    }, 5000);
+    return () => clearInterval(handle);
+  }, [id, queryClient]);
 
   if (!session) {
     return <div className="page">Loading session...</div>;

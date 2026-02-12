@@ -1,17 +1,25 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { submitExam } from "../../services/api";
+import { fetchMySubmission, submitExam } from "../../services/api";
 
 function ExamPage() {
   const { id } = useParams<{ id: string }>();
   const [answers, setAnswers] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [result, setResult] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+    fetchMySubmission(id).then(setResult);
+  }, [id]);
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     if (!id) return;
     const res = await submitExam(id, answers);
     setMessage(`Submission ID ${res.submission_id}: ${res.message}`);
+    const latest = await fetchMySubmission(id);
+    setResult(latest);
   };
 
   return (
@@ -27,6 +35,15 @@ function ExamPage() {
         </button>
       </form>
       {message && <div className="success">{message}</div>}
+      {result && (
+        <div className="card" style={{ marginTop: "1rem" }}>
+          <h2>Your Result</h2>
+          <p>Status: {result.status}</p>
+          <p>
+            Score: {result.score != null ? result.score : "Pending evaluation"}
+          </p>
+        </div>
+      )}
     </div>
   );
 }

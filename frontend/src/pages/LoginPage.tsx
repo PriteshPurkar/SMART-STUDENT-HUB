@@ -1,23 +1,30 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { login, register } from "../services/api";
+import { useQueryClient } from "@tanstack/react-query";
+import { login, register, type Role } from "../services/api";
 
 function LoginPage() {
   const [isRegister, setIsRegister] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState<Role>("STUDENT");
   const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
     setError(null);
     try {
       if (isRegister) {
-        await register(name, email, password);
+        await register(name, email, password, role);
       }
       const res = await login(email, password);
+
+      // Keep React Query auth state in sync so protected routes see the user.
+      queryClient.setQueryData(["me"], res.user);
+
       if (res.user.role === "STUDENT") {
         navigate("/student/dashboard");
       } else {
@@ -38,6 +45,16 @@ function LoginPage() {
             <div className="form-group">
               <label>Name</label>
               <input value={name} onChange={e => setName(e.target.value)} required />
+            </div>
+          )}
+          {isRegister && (
+            <div className="form-group">
+              <label>Role</label>
+              <select value={role} onChange={e => setRole(e.target.value as Role)}>
+                <option value="STUDENT">Student</option>
+                <option value="FACULTY">Faculty</option>
+                <option value="ADMIN">Admin</option>
+              </select>
             </div>
           )}
           <div className="form-group">

@@ -5,6 +5,10 @@ import LoginPage from "./pages/LoginPage";
 import StudentDashboard from "./pages/student/StudentDashboard";
 import SessionDetail from "./pages/student/SessionDetail";
 import ExamPage from "./pages/student/ExamPage";
+import StudentCourseDetail from "./pages/student/StudentCourseDetail";
+import FacultyDashboard from "./pages/faculty/FacultyDashboard";
+import FacultyCourseDetail from "./pages/faculty/FacultyCourseDetail";
+import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminSessions from "./pages/admin/AdminSessions";
 import AdminSessionDetail from "./pages/admin/AdminSessionDetail";
 
@@ -39,10 +43,42 @@ function App() {
         }
       />
       <Route
+        path="/student/courses/:id"
+        element={
+          <RequireRole user={user} allowed={["STUDENT"]}>
+            <StudentCourseDetail />
+          </RequireRole>
+        }
+      />
+      <Route
         path="/student/exams/:id"
         element={
           <RequireRole user={user} allowed={["STUDENT"]}>
             <ExamPage />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/faculty/dashboard"
+        element={
+          <RequireRole user={user} allowed={["FACULTY"]}>
+            <FacultyDashboard />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/faculty/courses/:id"
+        element={
+          <RequireRole user={user} allowed={["FACULTY"]}>
+            <FacultyCourseDetail />
+          </RequireRole>
+        }
+      />
+      <Route
+        path="/admin/dashboard"
+        element={
+          <RequireRole user={user} allowed={["ADMIN"]}>
+            <AdminDashboard />
           </RequireRole>
         }
       />
