@@ -36,6 +36,7 @@ type Session struct {
 	Status      SessionStatus `db:"status" json:"status"`
 	VideoURL    string        `db:"video_url" json:"video_url"`
 	CreatedBy   int64         `db:"created_by" json:"created_by"`
+	CreatedAt   time.Time     `db:"created_at" json:"created_at"`
 }
 
 type MaterialType string

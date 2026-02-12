@@ -13,6 +13,8 @@ type Services struct {
 	Sessions      *db.SessionService
 	Exams         *db.ExamService
 	Notifications *db.NotificationService
+	Materials     *db.MaterialService
+	ActivityLogs  *db.ActivityLogService
 	DB            *db.DB
 }
 
@@ -28,6 +30,8 @@ func InitServices(cfg *config.Config) (*Services, error) {
 		Sessions:      db.NewSessionService(database),
 		Exams:         db.NewExamService(database),
 		Notifications: db.NewNotificationService(database),
+		Materials:     db.NewMaterialService(database),
+		ActivityLogs:  db.NewActivityLogService(database),
 		DB:            database,
 	}
 

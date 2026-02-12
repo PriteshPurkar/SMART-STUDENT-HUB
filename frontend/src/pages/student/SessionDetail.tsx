@@ -20,10 +20,26 @@ function SessionDetail() {
 
   useEffect(() => {
     if (!id) return;
-    const handle = setInterval(() => {
-      queryClient.invalidateQueries({ queryKey: ["session", id] });
-    }, 5000);
-    return () => clearInterval(handle);
+
+    // Subscribe to realtime session status updates via SSE.
+    const source = new EventSource("/api/v1/realtime/stream");
+    source.onmessage = event => {
+      try {
+        const parsed = JSON.parse(event.data);
+        if (
+          parsed.type === "session_status_updated" &&
+          String(parsed.data.session_id) === String(id)
+        ) {
+          queryClient.invalidateQueries({ queryKey: ["session", id] });
+        }
+      } catch {
+        // ignore malformed events
+      }
+    };
+
+    return () => {
+      source.close();
+    };
   }, [id, queryClient]);
 
   if (!session) {

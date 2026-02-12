@@ -61,5 +61,3 @@ func maskDatabaseURL(url string) string {
 	// Just show that it's configured without showing credentials
 	return "postgres://***:***@***:***/**?"
 }
-}
-

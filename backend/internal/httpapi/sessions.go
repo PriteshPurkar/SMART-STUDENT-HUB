@@ -6,6 +6,8 @@ import (
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
+
+	"github.com/example/scalable-learning-platform/backend/internal/models"
 )
 
 func registerSessionRoutes(r chi.Router, services *Services) {
@@ -25,7 +27,7 @@ func handleListSessions(services *Services) http.HandlerFunc {
 
 		w.Header().Set("Content-Type", "application/json")
 		if sessions == nil {
-			sessions = []interface{}{}
+			sessions = []models.Session{}
 		}
 		_ = json.NewEncoder(w).Encode(sessions)
 	}
@@ -78,10 +80,30 @@ func handleGetSessionStatus(services *Services) http.HandlerFunc {
 
 func handleGetSessionMaterials(services *Services) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// TODO: Implement material service to fetch materials by session ID
-		materials := []interface{}{}
+		idStr := chi.URLParam(r, "id")
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid session id", http.StatusBadRequest)
+			return
+		}
+
+		materials, err := services.Materials.GetMaterialsBySessionID(id)
+		if err != nil {
+			http.Error(w, "failed to fetch materials", http.StatusInternalServerError)
+			return
+		}
+
+		// Convert to interface{} slice for consistency with other handlers
+		var asInterfaces []interface{}
+		for _, m := range materials {
+			asInterfaces = append(asInterfaces, m)
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(materials)
+		if asInterfaces == nil {
+			asInterfaces = []interface{}{}
+		}
+		_ = json.NewEncoder(w).Encode(asInterfaces)
 	}
 }
 

@@ -16,7 +16,12 @@ import (
 func registerAuthRoutes(r chi.Router, cfg *config.Config, services *Services) {
 	r.Post("/register", handleRegister(services))
 	r.Post("/login", handleLogin(cfg, services))
-	r.Get("/me", handleMe(services))
+
+	// Authenticated profile endpoint
+	r.Group(func(r chi.Router) {
+		r.Use(middleware.JWTAuth(cfg.JWTSecret))
+		r.Get("/me", handleMe(services))
+	})
 }
 
 type registerRequest struct {
@@ -99,6 +104,18 @@ func handleLogin(cfg *config.Config, services *Services) http.HandlerFunc {
 			Token: signed,
 			User:  user,
 		}
+
+		// Best-effort activity log; failures should not break login.
+		if services.ActivityLogs != nil {
+			_, _ = services.ActivityLogs.CreateLog(&models.ActivityLog{
+				UserID:       user.ID,
+				Action:       "LOGIN",
+				ResourceType: "USER",
+				ResourceID:   user.ID,
+				Metadata:     "",
+			})
+		}
+
 		w.Header().Set("Content-Type", "application/json")
 		_ = json.NewEncoder(w).Encode(resp)
 	}
